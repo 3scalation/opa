@@ -721,6 +721,42 @@ func TestTopdownVirtualCache(t *testing.T) {
 	}
 }
 
+func TestEvalVirtualNilIndex(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	store := inmem.New()
+
+	compiler := compileModules([]string{
+		`package test
+		p := 1 if true
+		`,
+	})
+
+	// Simulate a node with Values but no Index by niling out the index.
+	node := compiler.RuleTree.Find(ast.MustParseRef("data.test.p"))
+	if node == nil {
+		t.Fatal("expected to find rule tree node for data.test.p")
+	}
+	node.Index = nil
+
+	txn := storage.NewTransactionOrDie(ctx, store)
+	defer store.Abort(ctx, txn)
+
+	query := NewQuery(ast.MustParseBody("data.test.p = x")).
+		WithCompiler(compiler).
+		WithStore(store).
+		WithTransaction(txn)
+	// Before the fix, this panicked with: nil pointer dereference in evalVirtual.eval
+	qrs, err := query.Run(ctx)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(qrs) != 0 {
+		t.Fatalf("Expected no results when index is missing, got: %v", qrs)
+	}
+}
+
 func TestPartialRule(t *testing.T) {
 	t.Parallel()
 

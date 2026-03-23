@@ -2711,6 +2711,10 @@ func (e evalVirtual) eval(iter unifyIterator) error {
 		return err
 	}
 
+	if ir == nil {
+		return nil
+	}
+
 	// Partial evaluation of ordered rules is not supported currently. Save the
 	// expression and continue. This could be revisited in the future.
 	if len(ir.Else) > 0 && e.e.unknownRef(e.ref, e.bindings) {
